@@ -1,25 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-Hierarchical Bayesian UV metallicity inference pipeline
-
-Major features
---------------
-1. Hierarchical metallicity population model
-2. Joint EW likelihood with covariance matrix
-3. Simultaneous inference of metallicity and stellar population age
-4. ETC pipeline used to build EW model grid
-5. Cached model grid to avoid recomputation
-6. MCMC inference using emcee
-
-Author: <your name>
-"""
-
-# ==========================================================
-# IMPORTS
-# ==========================================================
-
 import os
 import glob
 import h5py
@@ -38,10 +19,6 @@ from unyt import angstrom
 import etc_noise_pipeline as etc
 
 
-# ==========================================================
-# USER SETTINGS
-# ==========================================================
-
 OBS_EW_DIR = "observed_EWs/"
 GRID_DIR = "/users/csant/data/grids"
 GRID_NAME = "bpass-2.3-bin_bpl-0.1,1.0,300.0-1.3,2.35_alpha0.0.hdf5"
@@ -51,10 +28,6 @@ N_STEPS = 8000
 
 RNG_SEED = 42
 
-
-# ==========================================================
-# UV INDEX DEFINITIONS
-# ==========================================================
 
 def get_uv_indices():
 
@@ -81,10 +54,6 @@ def get_uv_indices():
     return index,index_window,blue_window,red_window
 
 
-# ==========================================================
-# LOAD GALAXY DATA
-# ==========================================================
-
 def load_galaxies():
 
     galaxies = {}
@@ -109,10 +78,6 @@ def load_galaxies():
 
     return galaxies
 
-
-# ==========================================================
-# BUILD MODEL GRID (Z, AGE)
-# ==========================================================
 
 def build_model_grid(grid,index,index_window,blue_window,red_window):
 
@@ -156,10 +121,6 @@ def build_model_grid(grid,index,index_window,blue_window,red_window):
     return model,Zvals,agevals
 
 
-# ==========================================================
-# LOAD OR BUILD MODEL GRID
-# ==========================================================
-
 def get_model_grid():
 
     index,index_window,blue_window,red_window = get_uv_indices()
@@ -174,10 +135,6 @@ def get_model_grid():
 
     return model, Zvals, agevals
 
-
-# ==========================================================
-# BUILD INTERPOLATORS
-# ==========================================================
 
 def build_interpolators(model,Zvals,agevals):
 
@@ -195,11 +152,7 @@ def build_interpolators(model,Zvals,agevals):
         interpolators.append(interp)
 
     return interpolators
-
-
-# ==========================================================
-# COVARIANCE MATRIX
-# ==========================================================
+    
 
 def build_covariance(obs_sigma):
 
@@ -207,10 +160,6 @@ def build_covariance(obs_sigma):
 
     return C,np.linalg.inv(C)
 
-
-# ==========================================================
-# LIKELIHOOD
-# ==========================================================
 
 def log_likelihood(Z,age,obs,Cinv,interpolators):
 
@@ -233,10 +182,6 @@ def log_likelihood(Z,age,obs,Cinv,interpolators):
     return -0.5 * chi2
 
 
-# ==========================================================
-# HIERARCHICAL POSTERIOR
-# ==========================================================
-
 def log_posterior(theta, galaxies, interpolators, Zvals, agevals):
 
     mu_Z = theta[0]
@@ -249,11 +194,9 @@ def log_posterior(theta, galaxies, interpolators, Zvals, agevals):
 
     lp = 0.0
 
-    # --------------------------------------------------
     # PRIORS ON POPULATION PARAMETERS
-    # --------------------------------------------------
 
-    # metallicity mean prior (log space)
+    # metallicity mean prior
     if not (-10 < mu_Z < 0):
         return -np.inf
 
@@ -264,18 +207,13 @@ def log_posterior(theta, galaxies, interpolators, Zvals, agevals):
     # weak prior contribution (optional)
     lp += -np.log(sigma_Z)
 
-    # --------------------------------------------------
-    # LOOP OVER GALAXIES
-    # --------------------------------------------------
 
     for i, g in enumerate(galaxies):
 
         Zg = Z[i]
         ageg = age[i]
 
-        # ----------------------------------------------
         # PHYSICAL PRIORS
-        # ----------------------------------------------
 
         if not (Zvals.min() < Zg < Zvals.max()):
             return -np.inf
@@ -283,15 +221,11 @@ def log_posterior(theta, galaxies, interpolators, Zvals, agevals):
         if ageg < 6 or ageg > 8.5:
             return -np.inf
 
-        # ----------------------------------------------
         # HIERARCHICAL PRIOR
-        # ----------------------------------------------
 
         lp += -0.5 * ((np.log(Zg) - mu_Z) / sigma_Z)**2
 
-        # ----------------------------------------------
         # LIKELIHOOD
-        # ----------------------------------------------
 
         obs = galaxies[g]["EW"]
         sigma = galaxies[g]["sigma"]
@@ -313,9 +247,6 @@ def log_posterior(theta, galaxies, interpolators, Zvals, agevals):
 
     return lp
 
-# ==========================================================
-# RUN MCMC
-# ==========================================================
 
 def run_sampler(galaxies, interpolators, Zvals, agevals):
 
@@ -375,10 +306,6 @@ def run_sampler(galaxies, interpolators, Zvals, agevals):
     return sampler
 
 
-# ==========================================================
-# MAIN
-# ==========================================================
-
 def main():
 
     index,_,_,_ = get_uv_indices()
@@ -401,9 +328,7 @@ def main():
 
     n = len(galaxies)
 
-    # --------------------------------
     # Population parameters
-    # --------------------------------
 
     mu_Z = samples[:,0]
     sigma_Z = samples[:,1]
@@ -421,9 +346,7 @@ def main():
     print("\nTypical metallicity from mu_Z:")
     print("  Z ≈", np.exp(np.median(mu_Z)))
 
-    # --------------------------------
     # Individual galaxy metallicities
-    # --------------------------------
 
     print("\nGalaxy metallicities")
 
@@ -440,9 +363,7 @@ def main():
         print(f"  Z median = {Z_med}")
         print(f"  Z 16-84  = [{Z16}, {Z84}]")
 
-    # --------------------------------
     # Individual galaxy ages
-    # --------------------------------
 
     print("\nGalaxy stellar ages (log10 years)")
 
@@ -457,9 +378,7 @@ def main():
         print(f"  log(age) median = {age_med}")
         print(f"  log(age) 16-84  = [{age16}, {age84}]")
 
-    # --------------------------------
     # MCMC diagnostics
-    # --------------------------------
 
     print("\nMCMC diagnostics")
 
