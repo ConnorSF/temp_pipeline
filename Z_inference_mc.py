@@ -7,14 +7,13 @@ from astropy.io import fits
 from scipy.integrate import simpson
 import csv
 
-# ===============================
-# USER SETTINGS
-# ===============================
+
 # COSMA_OBS_SPECTRUM_FITS = "/cosma8/data/dp004/dc-sant4/data/DJA_spectra/gdn-fujimoto-v4_g140m-f070lp_4762_14050.spec.fits"
 
 OBS_SPECTRUM_FITS = "/users/csant/data/scripts/DJA_spectra/gdn-fujimoto-v4_g140m-f070lp_4762_16499.spec.fits"
 
 REDSHIFT = 6.3677
+# Redshift catalogue - change accordingly
 # 9547 : z = 6.1689 : s/n = 2.2 : grade = 3 RUN
 # 78773: z = 5.1885 : s/n = 2.0 : grade = 3 RUN
 # aurora: z = 5.1885 : s/n = 3.2 : grade = 3 RUN
@@ -34,9 +33,6 @@ REDSHIFT = 6.3677
 
 N_MC = 10000 # number of Monte Carlo realizations
 
-# ===============================
-# UV Indices & Windows
-# ===============================
 INDEX_LIST = [1370, 1400, 1425, 1460, 1501, 1533, 1550, 1719, 1853]
 
 INDEX_WINDOW = [
@@ -58,9 +54,7 @@ RED_WINDOW = [
 ]
 
 
-# ===============================
 # EW Measurement Function
-# ===============================
 def measure_EW(lam, flux, feature, blue, red):
     """
     Measure absorption EW using the same workflow as Synthesizer's measure_index.
@@ -124,9 +118,7 @@ def measure_EW(lam, flux, feature, blue, red):
 
     return EW
 
-# ===============================
 # Load Observed Spectrum
-# ===============================
 hdul = fits.open(OBS_SPECTRUM_FITS)
 spec = hdul[1].data
 
@@ -138,9 +130,7 @@ hdul.close()
 
 print(f"Loaded spectrum: {lam_obs.min():.1f} – {lam_obs.max():.1f} Å, flux ~ {np.nanmin(flux_obs):.2e} – {np.nanmax(flux_obs):.2e} µJy")
 
-# ===============================
 # Rest-frame conversion
-# ===============================
 lam_rest  = lam_obs / (1 + REDSHIFT)
 flux_rest = flux_obs * (1 + REDSHIFT)
 err_rest  = err_obs * (1 + REDSHIFT)
@@ -156,9 +146,7 @@ for j, idx in enumerate(INDEX_LIST):
           f"N_blue_finite={np.sum(mask_blue & np.isfinite(flux_rest))}",
           f"N_red_finite={np.sum(mask_red & np.isfinite(flux_rest))}")
 
-# ===============================
 # Monte Carlo EW Estimation
-# ===============================
 rng = np.random.default_rng(42)
 EW_MC = np.full((N_MC, len(INDEX_LIST)), np.nan)
 
@@ -170,9 +158,7 @@ for i in range(N_MC):
             INDEX_WINDOW[j], BLUE_WINDOW[j], RED_WINDOW[j]
         )
 
-# ===============================
 # EW Statistics
-# ===============================
 EW_med = np.nanmedian(EW_MC, axis=0)
 EW_p16 = np.nanpercentile(EW_MC, 16, axis=0)
 EW_p84 = np.nanpercentile(EW_MC, 84, axis=0)
@@ -182,9 +168,7 @@ print("\nObserved EWs (median ± sigma):")
 for j, idx in enumerate(INDEX_LIST):
     print(f"{idx} Å : {EW_med[j]:.3f} ± {EW_err[j]:.3f} Å")
 
-# ===============================
 # Diagnostic Plots with ±1σ shading
-# ===============================
 fig, axes = plt.subplots(3, 3, figsize=(10, 8))
 plt.rcParams["figure.dpi"] = 600
 plt.style.use("matplotlibrc.txt")
@@ -235,10 +219,7 @@ for j, idx in enumerate(INDEX_LIST):
 plt.tight_layout()
 plt.savefig("EW_MC_distributions.png")
 
-# ===============================
 # Sanity Check Function
-# ===============================
-
 def sanity_check(lam_obs, flux_obs, lam_rest, flux_rest,
                  EW_MC, EW_med,
                  INDEX_LIST, INDEX_WINDOW, BLUE_WINDOW, RED_WINDOW,
@@ -277,9 +258,7 @@ def sanity_check(lam_obs, flux_obs, lam_rest, flux_rest,
             "EW_MC_N": EW_MC.shape[0]
         })
 
-    # -------------------------------------------------
     # SAVE TO CSV
-    # -------------------------------------------------
     with open(csv_out, "w", newline="") as f:
         writer = csv.DictWriter(f, fieldnames=rows[0].keys())
         writer.writeheader()
